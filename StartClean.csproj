@@ -1,0 +1,27 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyTitle>StartClean 启动项管理器</AssemblyTitle>
+    <Product>StartClean</Product>
+    <Company>achieveil</Company>
+    <Description>StartClean 是一个轻量的 Windows 启动项管理工具，支持查看、启用、禁用、删除和添加启动项（注册表与启动文件夹）。</Description>
+    <Copyright>© achieveil</Copyright>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <PublishReadyToRun>false</PublishReadyToRun>
+    <IncludeNativeLibrariesForSelfExtract>false</IncludeNativeLibrariesForSelfExtract>
+    <PublishTrimmed>false</PublishTrimmed>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationIcon>StartClean.ico</ApplicationIcon>
+  </PropertyGroup>
+</Project>

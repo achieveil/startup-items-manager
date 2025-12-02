@@ -1,0 +1,34 @@
+# Build outputs
+bin/
+obj/
+/artifacts/
+/out/
+
+# Visual Studio / Rider
+.vs/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# NuGet
+*.nupkg
+*.snupkg
+.nuget/packages/
+packages/
+
+# Logs / coverage
+*.log
+TestResult*/
+coverage*/
+*.coverage
+*.coveragexml
+
+# OS generated
+.DS_Store
+Thumbs.db
+
+# Publish output
+publish/
+
