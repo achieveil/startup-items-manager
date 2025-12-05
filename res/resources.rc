@@ -1,0 +1,35 @@
+#include <winres.h>
+#include "resource.h"
+
+IDI_APPICON ICON "StartClean.ico"
+
+LANGUAGE LANG_CHINESE, SUBLANG_CHINESE_SIMPLIFIED
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 1,0,0
+ PRODUCTVERSION 1,0,0
+ FILEFLAGSMASK 0x3fL
+ FILEFLAGS 0x0L
+ FILEOS 0x40004L
+ FILETYPE 0x1L
+ FILESUBTYPE 0x0L
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "080404b0"
+        BEGIN
+            VALUE "CompanyName", "achieveil"
+            VALUE "FileDescription", "StartClean startup items manager"
+            VALUE "FileVersion", "1.0.0"
+            VALUE "InternalName", "StartClean"
+            VALUE "OriginalFilename", "StartClean.exe"
+            VALUE "ProductName", "StartClean"
+            VALUE "ProductVersion", "1.0.0"
+            VALUE "LegalCopyright", "achieveil, https://github.com/achieveil/startup-items-manager.git"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x0804, 1200
+    END
+END
