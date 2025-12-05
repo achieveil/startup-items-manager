@@ -254,6 +254,107 @@ bool ShouldSkipFile(const WIN32_FIND_DATAW &fd)
     return false;
 }
 
+// 前置声明，便于后面的辅助函数调用
+void EnumFolder(const std::wstring &folder, const std::wstring &disabled, bool enabled, bool requiresAdmin);
+
+std::wstring GetSafeDisabledFolder(bool isCommon)
+{
+    KNOWNFOLDERID id = isCommon ? FOLDERID_ProgramData : FOLDERID_LocalAppData;
+    int csidl = isCommon ? CSIDL_COMMON_APPDATA : CSIDL_LOCAL_APPDATA;
+    const wchar_t *envName = isCommon ? L"PROGRAMDATA" : L"LOCALAPPDATA";
+
+    PWSTR p = nullptr;
+    std::wstring path;
+
+    // 1) 新 API
+    if (SUCCEEDED(SHGetKnownFolderPath(id, 0, nullptr, &p)))
+    {
+        path.assign(p);
+        CoTaskMemFree(p);
+    }
+    // 2) 旧 API 兜底
+    if (path.empty())
+    {
+        wchar_t buf[MAX_PATH];
+        if (SUCCEEDED(SHGetFolderPathW(nullptr, csidl, nullptr, SHGFP_TYPE_CURRENT, buf)))
+            path = buf;
+    }
+    // 3) 环境变量兜底（极端情况下 SHGetKnownFolderPath 受限）
+    if (path.empty())
+    {
+        wchar_t buf[MAX_PATH];
+        DWORD n = GetEnvironmentVariableW(envName, buf, MAX_PATH);
+        if (n > 0 && n < MAX_PATH)
+            path.assign(buf, n);
+    }
+    // 4) 最后兜底：使用临时目录，避免在 Startup 下创建文件夹导致开机弹窗
+    if (path.empty())
+    {
+        wchar_t buf[MAX_PATH];
+        DWORD n = GetTempPathW(MAX_PATH, buf);
+        if (n > 0 && n < MAX_PATH)
+            path.assign(buf, n);
+    }
+
+    if (!path.empty())
+        path += L"\\StartClean\\DisabledStartup";
+
+    return path;
+}
+
+void MigrateLegacyDisabledFolder(const std::wstring &legacyFolder, const std::wstring &safeFolder)
+{
+    if (legacyFolder.empty() || safeFolder.empty())
+        return;
+    if (_wcsicmp(legacyFolder.c_str(), safeFolder.c_str()) == 0)
+        return;
+    if (!PathFileExistsW(legacyFolder.c_str()))
+        return;
+    if (!EnsureDir(safeFolder))
+        return;
+
+    WIN32_FIND_DATAW fd{};
+    HANDLE hFind = FindFirstFileW((legacyFolder + L"\\*").c_str(), &fd);
+    if (hFind != INVALID_HANDLE_VALUE)
+    {
+        do
+        {
+            if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+                continue;
+            std::wstring src = legacyFolder + L"\\" + fd.cFileName;
+            std::wstring dst = safeFolder + L"\\" + fd.cFileName;
+            MoveFileExW(src.c_str(), dst.c_str(), MOVEFILE_COPY_ALLOWED | MOVEFILE_REPLACE_EXISTING);
+        } while (FindNextFileW(hFind, &fd));
+        FindClose(hFind);
+    }
+
+    // 清理旧文件夹，避免重启时被 Windows 打开
+    std::wstring desktopIni = legacyFolder + L"\\desktop.ini";
+    DeleteFileW(desktopIni.c_str());
+    RemoveDirectoryW(legacyFolder.c_str());
+}
+
+void EnumStartupFolderWithDisabled(const std::wstring &startupFolder, bool requiresAdmin, bool isCommon)
+{
+    if (startupFolder.empty())
+        return;
+
+    std::wstring safeDisabled = GetSafeDisabledFolder(isCommon);
+    std::wstring legacyDisabled = startupFolder + L"\\StartCleanDisabled";
+    std::wstring targetDisabled = safeDisabled.empty() ? legacyDisabled : safeDisabled;
+
+    // 迁移旧目录；若权限不足导致迁移失败，后续仍会枚举旧目录，避免禁用项丢失
+    if (!safeDisabled.empty())
+        MigrateLegacyDisabledFolder(legacyDisabled, safeDisabled);
+
+    EnumFolder(startupFolder, targetDisabled, true, requiresAdmin);
+    EnumFolder(targetDisabled, startupFolder, false, requiresAdmin);
+
+    // 兜底枚举旧目录（例如迁移失败或使用旧版本禁用后留下的目录）
+    if (_wcsicmp(targetDisabled.c_str(), legacyDisabled.c_str()) != 0)
+        EnumFolder(legacyDisabled, startupFolder, false, requiresAdmin);
+}
+
 bool AlreadyHasItem(HKEY root, const std::wstring &key, const std::wstring &name, DWORD /*sam*/)
 {
     for (const auto &it : g_items)
@@ -514,18 +615,14 @@ void LoadItems()
     if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_Startup, 0, 0, &p1)))
     {
         std::wstring folder = p1;
-        std::wstring disabled = folder + L"\\StartCleanDisabled";
-        EnumFolder(folder, disabled, true, false);
-        EnumFolder(disabled, folder, false, false);
         CoTaskMemFree(p1);
+        EnumStartupFolderWithDisabled(folder, false, false);
     }
     if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_CommonStartup, 0, 0, &p2)))
     {
         std::wstring folder = p2;
-        std::wstring disabled = folder + L"\\StartCleanDisabled";
-        EnumFolder(folder, disabled, true, true);
-        EnumFolder(disabled, folder, false, true);
         CoTaskMemFree(p2);
+        EnumStartupFolderWithDisabled(folder, true, true);
     }
 
     // 稳定排序（按名称），避免刷新后顺序跳动
